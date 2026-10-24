@@ -1,0 +1,286 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Free algebra practice for students and teachers.">
+  <title>OpenMath Practice</title>
+  <style>
+    :root {
+      font-family: system-ui, Arial, sans-serif;
+      color: #172b4d;
+      background: #f4f7fb;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header {
+      background: #163b65;
+      color: white;
+      padding: 24px 18px;
+      text-align: center;
+    }
+    header h1 { margin: 0 0 8px; }
+    main { max-width: 760px; margin: 28px auto; padding: 0 16px; }
+    .card {
+      background: white;
+      padding: 24px;
+      margin-bottom: 18px;
+      border-radius: 14px;
+      box-shadow: 0 3px 12px #172b4d12;
+    }
+    .equation {
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      margin: 22px 0;
+    }
+    button, select, input {
+      font: inherit;
+      padding: 11px 13px;
+      border-radius: 8px;
+    }
+    button {
+      border: 0;
+      background: #176b87;
+      color: white;
+      cursor: pointer;
+      margin: 4px 3px 4px 0;
+    }
+    button:hover { background: #104c63; }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 3px solid #e4ad38;
+      outline-offset: 2px;
+    }
+    input, select {
+      border: 1px solid #9aabc0;
+      max-width: 100%;
+    }
+    input { width: 150px; }
+    .answer-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    #feedback { min-height: 28px; font-weight: 600; }
+    #solution { line-height: 1.8; }
+    .muted { color: #52657a; }
+    .question { padding: 12px 0; border-bottom: 1px solid #dbe3ec; }
+    footer { text-align: center; padding: 22px; color: #52657a; }
+    @media print {
+      body { background: white; color: black; }
+      header, #practice, #worksheet-controls, footer { display: none !important; }
+      main { margin: 0; max-width: none; padding: 0; }
+      .card { box-shadow: none; padding: 0; }
+      #worksheet { display: block !important; }
+      #worksheet h2 { margin-top: 0; }
+      .question { padding: 10px 0; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>OpenMath Practice</h1>
+    <p>Build algebra skills, one equation at a time.</p>
+  </header>
+
+  <main>
+    <section class="card" id="practice">
+      <h2>Equation practice</h2>
+      <p class="muted">Choose a level and solve for x.</p>
+
+      <label for="level">Difficulty:</label>
+      <select id="level">
+        <option value="one">One-step equations</option>
+        <option value="two" selected>Two-step equations</option>
+      </select>
+
+      <div class="equation" id="equation" aria-live="polite"></div>
+
+      <div class="answer-row">
+        <label for="answer">x = </label>
+        <input id="answer" type="number" step="1"
+               placeholder="Your answer">
+        <button id="check">Check answer</button>
+        <button id="next">New question</button>
+      </div>
+
+      <p id="feedback" role="status" aria-live="polite"></p>
+      <button id="show-solution">Show solution</button>
+      <div id="solution" hidden></div>
+    </section>
+
+    <section class="card" id="worksheet-controls">
+      <h2>Printable worksheet</h2>
+      <p>Generate ten questions for independent practice.</p>
+      <button id="make-worksheet">Generate worksheet</button>
+      <button id="print-worksheet">Print worksheet</button>
+    </section>
+
+    <section class="card" id="worksheet">
+      <h2>Algebra Practice Worksheet</h2>
+      <p>Name: ____________________ Date: ______________</p>
+      <p>Solve each equation. Show your work.</p>
+      <div id="worksheet-questions"></div>
+      <h3>Answer key</h3>
+      <ol id="answer-key"></ol>
+    </section>
+  </main>
+
+  <footer>
+    OpenMath Practice · Free educational software
+  </footer>
+
+  <script>
+    "use strict";
+
+    let current = null;
+    let worksheet = [];
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function formatExpression(coefficient, constant) {
+      let result = coefficient === 1 ? "x" :
+                   coefficient === -1 ? "-x" :
+                   coefficient + "x";
+
+      if (constant > 0) result += " + " + constant;
+      if (constant < 0) result += " - " + Math.abs(constant);
+      return result;
+    }
+
+    function makeQuestion(level) {
+      const x = randomInt(-10, 10);
+      const a = randomInt(2, 6) * (Math.random() < 0.5 ? -1 : 1);
+
+      if (level === "one") {
+        const operation = Math.random() < 0.5 ? "add" : "multiply";
+
+        if (operation === "add") {
+          const b = randomInt(-10, 10);
+          return {
+            text: "x " + (b < 0 ? "- " + Math.abs(b) : "+ " + b)
+                  + " = " + (x + b),
+            x,
+            steps: [
+              "Start with x " +
+                (b < 0 ? "- " + Math.abs(b) : "+ " + b) +
+                " = " + (x + b) + ".",
+              "Undo the addition or subtraction by using the opposite operation.",
+              "x = " + x + "."
+            ]
+          };
+        }
+
+        return {
+          text: a + "x = " + (a * x),
+          x,
+          steps: [
+            "Start with " + a + "x = " + (a * x) + ".",
+            "Divide both sides by " + a + ".",
+            "x = " + x + "."
+          ]
+        };
+      }
+
+      const b = randomInt(-10, 10);
+      return {
+        text: formatExpression(a, b) + " = " + (a * x + b),
+        x,
+        steps: [
+          "Start with " + formatExpression(a, b) +
+            " = " + (a * x + b) + ".",
+          "Subtract " + b + " from both sides.",
+          a + "x = " + (a * x) + ".",
+          "Divide both sides by " + a + ".",
+          "x = " + x + "."
+        ]
+      };
+    }
+
+    function newQuestion() {
+      current = makeQuestion(document.getElementById("level").value);
+      document.getElementById("equation").textContent = current.text;
+      document.getElementById("answer").value = "";
+      document.getElementById("feedback").textContent = "";
+      document.getElementById("solution").hidden = true;
+      document.getElementById("solution").textContent = "";
+      document.getElementById("answer").focus();
+    }
+
+    function checkAnswer() {
+      const input = document.getElementById("answer");
+      const feedback = document.getElementById("feedback");
+
+      if (input.value.trim() === "") {
+        feedback.textContent = "Enter an answer first.";
+        return;
+      }
+
+      const value = Number(input.value);
+
+      if (!Number.isFinite(value)) {
+        feedback.textContent = "Please enter a valid number.";
+      } else if (value === current.x) {
+        feedback.textContent = "Correct! Well done.";
+      } else {
+        feedback.textContent = "Not quite. Try again or show the solution.";
+      }
+    }
+
+    function showSolution() {
+      const box = document.getElementById("solution");
+      box.replaceChildren();
+
+      current.steps.forEach(step => {
+        const paragraph = document.createElement("p");
+        paragraph.textContent = step;
+        box.appendChild(paragraph);
+      });
+
+      box.hidden = false;
+    }
+
+    function makeWorksheet() {
+      const level = document.getElementById("level").value;
+      worksheet = Array.from(
+        { length: 10 },
+        () => makeQuestion(level)
+      );
+
+      const questions = document.getElementById("worksheet-questions");
+      const key = document.getElementById("answer-key");
+      questions.replaceChildren();
+      key.replaceChildren();
+
+      worksheet.forEach((question, index) => {
+        const row = document.createElement("div");
+        row.className = "question";
+        row.textContent = (index + 1) + ".  " + question.text +
+          "     x = __________";
+        questions.appendChild(row);
+
+        const item = document.createElement("li");
+        item.textContent = "x = " + question.x;
+        key.appendChild(item);
+      });
+    }
+
+    document.getElementById("check").addEventListener("click", checkAnswer);
+    document.getElementById("next").addEventListener("click", newQuestion);
+    document.getElementById("show-solution").addEventListener("click", showSolution);
+    document.getElementById("make-worksheet").addEventListener("click", makeWorksheet);
+    document.getElementById("print-worksheet").addEventListener("click", () => {
+      if (worksheet.length === 0) makeWorksheet();
+      window.print();
+    });
+
+    document.getElementById("answer").addEventListener("keydown", event => {
+      if (event.key === "Enter") checkAnswer();
+    });
+
+    document.getElementById("level").addEventListener("change", newQuestion);
+
+    makeWorksheet();
+    newQuestion();
+  </script>
+</body>
+</html>
